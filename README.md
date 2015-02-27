@@ -6,7 +6,7 @@ front of the actual Postgres connections.
 
 Use:
 
-    pgapp:connect([{database, "mydb"}, {username, "foo"}, {password, "bar"}]).
+    pgapp:connect([{size, 10}, {database, "mydb"}, {username, "foo"}, {password, "bar"}]).
     pgapp:equery("select current_date", []).
 
 **Note**: It is still experimental, and is likely to break.  The API is not stable.
