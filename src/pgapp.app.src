@@ -1,0 +1,13 @@
+{application, pgapp,
+ [
+  {description, "epgsql application"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  poolboy
+                 ]},
+  {mod, { pgapp_app, []}},
+  {env, []}
+ ]}.
