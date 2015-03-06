@@ -9,7 +9,7 @@
 -module(pgapp).
 
 %% API
--export([connect/1, equery/2]).
+-export([connect/1, equery/2, squery/1]).
 
 %%%===================================================================
 %%% API
@@ -29,6 +29,12 @@ equery(Sql, Params) ->
     poolboy:transaction(epgsql_pool,
                         fun(Worker) ->
                                 gen_server:call(Worker, {equery, Sql, Params})
+                        end).
+
+squery(Sql) ->
+    poolboy:transaction(epgsql_pool,
+                        fun(Worker) ->
+                                gen_server:call(Worker, {squery, Sql})
                         end).
 
 %%--------------------------------------------------------------------
