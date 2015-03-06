@@ -25,12 +25,16 @@ connect(Settings) ->
                         {max_overflow, MaxOverflow}],
                        Settings).
 
+-spec equery(Sql::epgsql:sql_query(),
+             Params :: list(epgsql:bind_param())) -> epgsql:reply(epgsql:equery_row()).
 equery(Sql, Params) ->
     poolboy:transaction(epgsql_pool,
                         fun(Worker) ->
                                 gen_server:call(Worker, {equery, Sql, Params})
                         end).
 
+-spec squery(Sql::epgsql:sql_query()) -> epgsql:reply(epgsql:squery_row()) |
+                                         [epgsql:reply(epgsql:squery_row())].
 squery(Sql) ->
     poolboy:transaction(epgsql_pool,
                         fun(Worker) ->
