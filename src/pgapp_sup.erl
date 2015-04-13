@@ -23,7 +23,13 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    {ok, { {one_for_one, 10, 10}, []} }.
+    {ok, Pools} = application:get_env(pgapp, pools),
+    PoolSpec = lists:map(fun ({PoolName, SizeArgs, WorkerArgs}) ->
+                             PoolArgs = [{name, {local, PoolName}},
+                                         {worker_module, pgapp_worker}] ++ SizeArgs,
+                             poolboy:child_spec(PoolName, PoolArgs, WorkerArgs)
+                         end, Pools),
+    {ok, { {one_for_one, 10, 10}, PoolSpec} }.
 
 add_pool(Name, PoolArgs, WorkerArgs) ->
     ChildSpec = poolboy:child_spec(Name, PoolArgs, WorkerArgs),
