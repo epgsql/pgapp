@@ -22,10 +22,17 @@ Build and start the application with Make:
       where `a_pool_name` is the name of one of the pools in your `pgapp.config` file.
 
 API use:
-
-    application:ensure_all_started(pgapp).
-    pgapp:connect(a_pool_name, [{size, 10}, {database, "mydb"}, {username, "foo"}, {password, "bar"}]).
-    pgapp:equery(a_pool_name, "select current_date", []).
+    - Simple pool:
+    
+        application:ensure_all_started(pgapp).
+        pgapp:connect([{size, 10}, {database, "mydb"}, {username, "foo"}, {password, "bar"}]).
+        pgapp:equery("select current_date", []).
+    
+    - Multi pool:
+        
+        application:ensure_all_started(pgapp).
+        pgapp:connect(a_pool_name, [{size, 10}, {database, "mydb"}, {username, "foo"}, {password, "bar"}]).
+        pgapp:equery(a_pool_name, "select current_date", []).
 
 The equery and squery API's are the same as those of epgsql: https://github.com/epgsql/epgsql
 
