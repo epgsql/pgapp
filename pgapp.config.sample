@@ -1,0 +1,25 @@
+[{pgapp, [
+    {pools, [
+        {pool1, [
+                {size, 10},
+                {max_overflow, 20}
+            ],
+            [
+                {hostname, "localhost"},
+                {database, "db1"},
+                {username, "user"},
+                {password, "pass"}
+            ]},
+        {pool2, [
+                {size, 5},
+                {max_overflow, 10}
+            ],
+            [
+                {hostname, "localhost"},
+                {database, "db2"},
+                {username, "user"},
+                {password, "pass"}
+            ]}
+        ]}
+    ]
+}].

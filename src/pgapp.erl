@@ -9,17 +9,20 @@
 -module(pgapp).
 
 %% API
--export([connect/1, equery/2, squery/1]).
+-export([connect/1, connect/2, equery/2, equery/3, squery/1, squery/2]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 connect(Settings) ->
+    connect(epgsql_pool, Settings).
+
+connect(PoolName, Settings) ->
     PoolSize = proplists:get_value(size, Settings, 5),
     MaxOverflow = proplists:get_value(max_overflow, Settings, 5),
-    pgapp_sup:add_pool(epgsql_pool,
-                       [{name, {local, epgsql_pool}},
+    pgapp_sup:add_pool(PoolName,
+                       [{name, {local, PoolName}},
                         {worker_module, pgapp_worker},
                         {size, PoolSize},
                         {max_overflow, MaxOverflow}],
@@ -28,7 +31,12 @@ connect(Settings) ->
 -spec equery(Sql::epgsql:sql_query(),
              Params :: list(epgsql:bind_param())) -> epgsql:reply(epgsql:equery_row()).
 equery(Sql, Params) ->
-    poolboy:transaction(epgsql_pool,
+    equery(epgsql_pool, Sql, Params).
+
+-spec equery(PoolName::atom(), Sql::epgsql:sql_query(),
+             Params :: list(epgsql:bind_param())) -> epgsql:reply(epgsql:equery_row()).
+equery(PoolName, Sql, Params) ->
+    poolboy:transaction(PoolName,
                         fun(Worker) ->
                                 gen_server:call(Worker, {equery, Sql, Params})
                         end).
@@ -36,7 +44,12 @@ equery(Sql, Params) ->
 -spec squery(Sql::epgsql:sql_query()) -> epgsql:reply(epgsql:squery_row()) |
                                          [epgsql:reply(epgsql:squery_row())].
 squery(Sql) ->
-    poolboy:transaction(epgsql_pool,
+    squery(epgsql_pool, Sql).
+
+-spec squery(PoolName::atom(), Sql::epgsql:sql_query()) -> epgsql:reply(epgsql:squery_row()) |
+                                                           [epgsql:reply(epgsql:squery_row())].
+squery(PoolName, Sql) ->
+    poolboy:transaction(PoolName,
                         fun(Worker) ->
                                 gen_server:call(Worker, {squery, Sql})
                         end).
