@@ -67,7 +67,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 connect(State) ->
     Args = State#state.start_args,
-    Hostname = proplists:get_value(hostname, Args),
+    Hostname = proplists:get_value(host, Args),
     Database = proplists:get_value(database, Args),
     Username = proplists:get_value(username, Args),
 
@@ -94,5 +94,3 @@ calculate_delay(Delay) when (Delay * 2) >= ?MAXIMUM_DELAY ->
     ?MAXIMUM_DELAY;
 calculate_delay(Delay) ->
     Delay * 2.
-
-
