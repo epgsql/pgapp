@@ -5,8 +5,12 @@
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+                  epgsql,
+                  poolboy
                  ]},
   {mod, { pgapp_app, []}},
-  {env, []}
+  {env, [
+    {pools, []}
+  ]}
  ]}.
