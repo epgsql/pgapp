@@ -15,7 +15,7 @@ run:
 	erl -pa ebin ./deps/*/ebin ./deps/*/include \
 	-name pgapp@127.0.0.1 \
 	-config "pgapp.config" \
-	-eval "application:start(pgapp)."
+	-eval "application:ensure_all_started(pgapp)."
 
 dialyzer: build.plt compile
 	dialyzer --plt $< ebin
