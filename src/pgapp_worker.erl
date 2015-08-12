@@ -17,8 +17,7 @@
                 delay::pos_integer(),
                 timer::timer:tref(),
                 start_args::proplists:proplist(),
-                sql_text::proplists:proplist(),
-                sql_statements::ets:tid()}).
+                sql_text::proplists:proplist()}).
 
 -define(INITIAL_DELAY, 500). % Half a second
 -define(MAXIMUM_DELAY, 5 * 60 * 1000). % Five minutes
@@ -35,8 +34,7 @@ init(#worker_args{connection_args = Args, prepared_sql = PreparedSQL}) ->
     {ok, connect(#state{
                   start_args = Args,
                   sql_text = PreparedSQL,
-                  delay = ?INITIAL_DELAY,
-                  sql_statements = ets:new(prepared_sql, [private, {keypos, #statement.name}])
+                  delay = ?INITIAL_DELAY
     })}.
 
 handle_call({squery, Sql}, _From, #state{conn=Conn} = State) when Conn /= undefined ->
@@ -46,18 +44,16 @@ handle_call({equery, Sql, Params}, _From, #state{conn = Conn} = State) when Conn
     {reply, epgsql:equery(Conn, Sql, Params), State};
 
 handle_call({prepared_query, Name, Params}, _From, #state{conn = Conn} = State) when Conn /= undefined ->
-  Statements = State#state.sql_statements,
-  case ets:lookup(Statements, Name) of
-    [Statement] ->
+  case epgsql:describe(Conn, statement, Name) of
+    {ok, Statement} ->
       case epgsql:bind(Conn, Statement, Params) of
         ok ->
           {reply, epgsql:execute(Conn, Statement), State};
         Error ->
           {reply, Error, State}
       end;
-    _ ->
-      error_logger:error_msg("SQL statement ~p is not found", [Name]),
-      {reply, {error, sql_not_found}, State}
+    Err ->
+      {reply, Err, State}
   end.
 
 
@@ -86,8 +82,7 @@ handle_info({'EXIT', From, Reason}, State) ->
       [self(), From, Reason, NewDelay]),
     {noreply, State#state{conn = undefined, delay = NewDelay, timer = Tref}}.
 
-terminate(_Reason, #state{conn=Conn, sql_statements = Statements}) ->
-    ets:delete(Statements),
+terminate(_Reason, #state{conn=Conn}) ->
     ok = epgsql:close(Conn),
     ok.
 
@@ -95,21 +90,19 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 
-prepare_statements(Con, PreparedSQL, Statements) ->
-    ets:delete_all_objects(Statements),
-    Results = lists:map(
+prepare_statements(Con, PreparedSQL) ->
+    lists:all(
       fun({Name, Query}) ->
         case epgsql:parse(Con, Name, Query, []) of
-          {ok, Statement} ->
-            ets:insert(Statements, Statement);
+          {ok, _Statement} ->
+            true;
           {error, Reason} ->
             error_logger:error_msg("Error ~p parsing SQL query ~p", [Reason, Query]),
             false
         end
       end,
       PreparedSQL
-    ),
-    lists:all(fun(E) -> E end, Results).
+    ).
 
 connect(State) ->
     Args = State#state.start_args,
@@ -123,7 +116,7 @@ connect(State) ->
               "~p Connected to ~s at ~s with user ~s: ~p~n",
               [self(), Database, Hostname, Username, Conn]),
             timer:cancel(State#state.timer),
-            case prepare_statements(Conn, State#state.sql_text, State#state.sql_statements) of
+            case prepare_statements(Conn, State#state.sql_text) of
               true ->
                 State#state{conn=Conn, delay=?INITIAL_DELAY, timer = undefined};
               false ->
