@@ -9,7 +9,8 @@
 -module(pgapp).
 
 %% API
--export([connect/1, connect/2, equery/2, equery/3, squery/1, squery/2, prepared_query/3]).
+-export([connect/1, connect/2, equery/2, equery/3, squery/1, squery/2,
+         prepared_query/3, prepared_query/2]).
 
 %%%===================================================================
 %%% API
@@ -40,6 +41,11 @@ equery(PoolName, Sql, Params) ->
                         fun(Worker) ->
                                 gen_server:call(Worker, {equery, Sql, Params})
                         end).
+
+-spec prepared_query(Name::string,Params :: list(epgsql:bind_param())) ->
+                                          epgsql:reply(epgsql:equery_row()).
+prepared_query(Name, Params) ->
+  prepared_query(epgsql_pool, Name, Params).
 
 -spec prepared_query(PoolName::atom(), Name::string,
     Params :: list(epgsql:bind_param())) -> epgsql:reply(epgsql:equery_row()).
