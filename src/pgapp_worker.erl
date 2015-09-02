@@ -44,17 +44,25 @@ handle_call({equery, Sql, Params}, _From, #state{conn = Conn} = State) when Conn
     {reply, epgsql:equery(Conn, Sql, Params), State};
 
 handle_call({prepared_query, Name, Params}, _From, #state{conn = Conn} = State) when Conn /= undefined ->
-  case epgsql:describe(Conn, statement, Name) of
+  FinRepl = case epgsql:describe(Conn, statement, Name) of
     {ok, Statement} ->
       case epgsql:bind(Conn, Statement, Params) of
         ok ->
-          {reply, epgsql:execute(Conn, Statement), State};
-        Error ->
-          {reply, Error, State}
+          case epgsql:execute(Conn, Statement) of
+            {ok, _} = R ->
+              case epgsql:sync(Conn) of
+                ok -> R;
+                E -> E
+              end;
+            Er -> Er
+          end;
+        Error -> Error
       end;
-    Err ->
-      {reply, Err, State}
-  end.
+    Err -> Err
+  end,
+  {reply, FinRepl, State}.
+
+
 
 
 
