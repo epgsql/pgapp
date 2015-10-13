@@ -9,7 +9,8 @@
 -module(pgapp).
 
 %% API
--export([connect/1, connect/2, equery/2, equery/3, squery/1, squery/2]).
+-export([connect/1, connect/2, equery/2, equery/3, squery/1, squery/2,
+         with_transaction/1, with_transaction/2]).
 
 %%%===================================================================
 %%% API
@@ -31,28 +32,28 @@ connect(PoolName, Settings) ->
 -spec equery(Sql::epgsql:sql_query(),
              Params :: list(epgsql:bind_param())) -> epgsql:reply(epgsql:equery_row()).
 equery(Sql, Params) ->
-    equery(epgsql_pool, Sql, Params).
+    pgapp_worker:equery(Sql, Params).
 
 -spec equery(PoolName::atom(), Sql::epgsql:sql_query(),
              Params :: list(epgsql:bind_param())) -> epgsql:reply(epgsql:equery_row()).
 equery(PoolName, Sql, Params) ->
-    poolboy:transaction(PoolName,
-                        fun(Worker) ->
-                                gen_server:call(Worker, {equery, Sql, Params})
-                        end).
+    pgapp_worker:equery(PoolName, Sql, Params).
 
 -spec squery(Sql::epgsql:sql_query()) -> epgsql:reply(epgsql:squery_row()) |
                                          [epgsql:reply(epgsql:squery_row())].
 squery(Sql) ->
-    squery(epgsql_pool, Sql).
+    pgapp_worker:squery(Sql).
 
 -spec squery(PoolName::atom(), Sql::epgsql:sql_query()) -> epgsql:reply(epgsql:squery_row()) |
                                                            [epgsql:reply(epgsql:squery_row())].
 squery(PoolName, Sql) ->
-    poolboy:transaction(PoolName,
-                        fun(Worker) ->
-                                gen_server:call(Worker, {squery, Sql})
-                        end).
+    pgapp_worker:squery(PoolName, Sql).
+
+with_transaction(PoolName, Fun) when is_function(Fun, 0) ->
+    pgapp_worker:with_transaction(PoolName, Fun).
+
+with_transaction(Fun) when is_function(Fun, 0) ->
+    with_transaction(epgsql_pool, Fun).
 
 %%--------------------------------------------------------------------
 %% @doc
