@@ -14,22 +14,27 @@ Build and start the application with Make:
 
         ~:$ make
         ~:$ make run
-    
+
     - To test it, just run:
-    
+
         > pgapp:equery(a_pool_name, "select current_date", []).
-    
+
       where `a_pool_name` is the name of one of the pools in your `pgapp.config` file.
 
 API use:
     - Simple pool:
-    
+
         application:ensure_all_started(pgapp).
         pgapp:connect([{size, 10}, {database, "mydb"}, {username, "foo"}, {password, "bar"}]).
-        pgapp:equery("select current_date", []).
-    
+        pgapp:equery("select current_date", []),
+        pgapp:with_transaction(fun() ->
+                                     pgapp:squery("update ..."),
+                                     pgapp:squery("delete from ..."),
+                                     pgapp:equery("select ? from ?", ["*", Table])
+                               end).
+
     - Multi pool:
-        
+
         application:ensure_all_started(pgapp).
         pgapp:connect(a_pool_name, [{size, 10}, {database, "mydb"}, {username, "foo"}, {password, "bar"}]).
         pgapp:equery(a_pool_name, "select current_date", []).
