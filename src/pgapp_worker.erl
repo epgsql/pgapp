@@ -8,6 +8,10 @@
 -behaviour(gen_server).
 -behaviour(poolboy_worker).
 
+-export([squery/1, squery/2, squery/3,
+         equery/2, equery/3, equery/4,
+         with_transaction/2, with_transaction/3]).
+
 -export([start_link/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -20,6 +24,55 @@
 
 -define(INITIAL_DELAY, 500). % Half a second
 -define(MAXIMUM_DELAY, 5 * 60 * 1000). % Five minutes
+-define(TIMEOUT, 5 * 1000).
+
+-define(STATE_VAR, '$pgapp_state').
+
+squery(Sql) ->
+    case get(?STATE_VAR) of
+        undefined ->
+            squery(epgsql_pool, Sql);
+        Conn ->
+            epgsql:squery(Conn, Sql)
+    end.
+
+squery(PoolName, Sql) ->
+    squery(PoolName, Sql, ?TIMEOUT).
+
+squery(PoolName, Sql, Timeout) ->
+    poolboy:transaction(PoolName,
+                        fun (Worker) ->
+                                gen_server:call(Worker, {squery, Sql}, Timeout)
+                        end, Timeout).
+
+
+equery(Sql, Params) ->
+    case get(?STATE_VAR) of
+        undefined ->
+            equery(epgsql_pool, Sql, Params);
+        Conn ->
+            epgsql:equery(Conn, Sql, Params)
+    end.
+
+equery(PoolName, Sql, Params) ->
+    equery(PoolName, Sql, Params, ?TIMEOUT).
+
+equery(PoolName, Sql, Params, Timeout) ->
+    poolboy:transaction(PoolName,
+                        fun (Worker) ->
+                                gen_server:call(Worker,
+                                                {equery, Sql, Params}, Timeout)
+                        end, Timeout).
+
+with_transaction(PoolName, Fun) ->
+    with_transaction(PoolName, Fun, ?TIMEOUT).
+
+with_transaction(PoolName, Fun, Timeout) ->
+    poolboy:transaction(PoolName,
+                        fun (Worker) ->
+                                gen_server:call(Worker,
+                                                {transaction, Fun}, Timeout)
+                        end, Timeout).
 
 start_link(Args) ->
     gen_server:start_link(?MODULE, Args, []).
@@ -28,11 +81,19 @@ init(Args) ->
     process_flag(trap_exit, true),
     {ok, connect(#state{start_args = Args, delay = ?INITIAL_DELAY})}.
 
-handle_call({squery, Sql}, _From, #state{conn=Conn} = State) when Conn /= undefined ->
+handle_call({squery, Sql}, _From,
+            #state{conn=Conn} = State) when Conn /= undefined ->
     {reply, epgsql:squery(Conn, Sql), State};
+handle_call({equery, Sql, Params}, _From,
+            #state{conn = Conn} = State) when Conn /= undefined ->
+    {reply, epgsql:equery(Conn, Sql, Params), State};
 
-handle_call({equery, Sql, Params}, _From, #state{conn = Conn} = State) when Conn /= undefined ->
-    {reply, epgsql:equery(Conn, Sql, Params), State}.
+handle_call({transaction, Fun}, _From,
+            #state{conn = Conn} = State) when Conn /= undefined ->
+    put(?STATE_VAR, Conn),
+    Result = epgsql:with_transaction(Conn, fun(_) -> Fun() end),
+    erase(?STATE_VAR),
+    {reply, Result, State}.
 
 handle_cast(reconnect, State) ->
     {noreply, connect(State)}.
