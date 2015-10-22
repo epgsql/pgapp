@@ -36,15 +36,16 @@ squery(Sql) ->
             epgsql:squery(Conn, Sql)
     end.
 
-squery(PoolName, Sql) ->
-    squery(PoolName, Sql, ?TIMEOUT).
+squery(PoolName, Sql) when is_atom(PoolName) ->
+    squery(PoolName, Sql, ?TIMEOUT);
+squery(Sql, Timeout) ->
+    squery(epgsql_pool, Sql, Timeout).
 
 squery(PoolName, Sql, Timeout) ->
     poolboy:transaction(PoolName,
                         fun (Worker) ->
                                 gen_server:call(Worker, {squery, Sql}, Timeout)
                         end, Timeout).
-
 
 equery(Sql, Params) ->
     case get(?STATE_VAR) of
@@ -54,8 +55,10 @@ equery(Sql, Params) ->
             epgsql:equery(Conn, Sql, Params)
     end.
 
-equery(PoolName, Sql, Params) ->
-    equery(PoolName, Sql, Params, ?TIMEOUT).
+equery(PoolName, Sql, Params) when is_atom(PoolName) ->
+    equery(PoolName, Sql, Params, ?TIMEOUT);
+equery(Sql, Params, Timeout) ->
+    equery(epgsql_pool, Sql, Params, Timeout).
 
 equery(PoolName, Sql, Params, Timeout) ->
     poolboy:transaction(PoolName,

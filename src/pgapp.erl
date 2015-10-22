@@ -59,7 +59,13 @@ squery(Sql) ->
 -spec squery(Sql::epgsql:sql_query(),
              Timeout :: atom() | integer())
             -> epgsql:reply(epgsql:squery_row()) |
+               [epgsql:reply(epgsql:squery_row())];
+            (PoolName :: atom(),
+             Sql::epgsql:sql_query())
+            -> epgsql:reply(epgsql:squery_row()) |
                [epgsql:reply(epgsql:squery_row())].
+squery(PoolName, Sql) when is_atom(PoolName) ->
+    pgapp_worker:squery(PoolName, Sql);
 squery(Sql, Timeout) ->
     pgapp_worker:squery(Sql, Timeout).
 
@@ -78,9 +84,17 @@ with_transaction(Fun) when is_function(Fun, 0) ->
 
 -spec with_transaction(PoolName :: atom(),
                        Function :: fun(() -> Reply))
+                      -> Reply | {rollback, any()} when Reply :: any();
+                      (Function :: fun(() -> Reply),
+                       Timeout  :: timeout())
                       -> Reply | {rollback, any()} when Reply :: any().
-with_transaction(PoolName, Fun) when is_function(Fun, 0) ->
-    pgapp_worker:with_transaction(PoolName, Fun).
+with_transaction(PoolName, Fun) when is_function(Fun, 0);
+                                     is_atom(PoolName) ->
+    pgapp_worker:with_transaction(PoolName, Fun);
+with_transaction(Fun, Timeout) when is_function(Fun, 0) ->
+    pgapp_worker:with_transaction(epgsql_pool, Fun, Timeout).
+
+
 
 -spec with_transaction(PoolName :: atom(),
                        Function :: fun(() -> Reply),
