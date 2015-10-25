@@ -9,18 +9,24 @@
 -module(pgapp).
 
 %% API
--export([connect/1, connect/2,
-         equery/2, equery/3, equery/4,
-         squery/1, squery/2, squery/3,
-         with_transaction/1, with_transaction/2, with_transaction/3]).
+-export([connect/1, connect/2]).
+-export([equery/2, equery/3, equery/4]).
+-export([squery/1, squery/2, squery/3]).
+-export([with_transaction/1, with_transaction/2, with_transaction/3]).
+-export([connected_workers/1]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
+-spec connect(Settings :: list()) -> {ok, WorkerPid} when
+              WorkerPid :: pid().
 connect(Settings) ->
     connect(epgsql_pool, Settings).
 
+-spec connect(PoolName :: atom(),
+              Settings :: list()) -> {ok, WorkerPid} when
+              WorkerPid :: pid().
 connect(PoolName, Settings) ->
     PoolSize    = proplists:get_value(size, Settings, 5),
     MaxOverflow = proplists:get_value(max_overflow, Settings, 5),
@@ -88,6 +94,13 @@ with_transaction(PoolName, Fun) when is_function(Fun, 0) ->
                       -> Reply | {rollback, any()} when Reply :: any().
 with_transaction(PoolName, Fun, Timeout) when is_function(Fun, 0) ->
     pgapp_worker:with_transaction(PoolName, Fun, Timeout).
+
+-spec connected_workers(PoolName :: atom()) -> {ok, ConnectedWorkerPids} when
+                        ConnectedWorkerPids :: list(pid()).
+connected_workers(PoolName) ->
+    WorkerPids = gen_server:call(PoolName, get_avail_workers),
+    {ok, [WorkerPid || WorkerPid <- WorkerPids,
+          pgapp_worker:is_connected(WorkerPid)]}.
 
 %%--------------------------------------------------------------------
 %% @doc

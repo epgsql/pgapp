@@ -8,9 +8,10 @@
 -behaviour(gen_server).
 -behaviour(poolboy_worker).
 
--export([squery/1, squery/2, squery/3,
-         equery/2, equery/3, equery/4,
-         with_transaction/2, with_transaction/3]).
+-export([squery/1, squery/2, squery/3]).
+-export([equery/2, equery/3, equery/4]).
+-export([with_transaction/2, with_transaction/3]).
+-export([is_connected/1]).
 
 -export([start_link/1]).
 
@@ -29,15 +30,17 @@
 -define(STATE_VAR, '$pgapp_state').
 
 squery(Sql) ->
+    squery(Sql, ?TIMEOUT).
+
+squery(PoolName, Sql) when is_atom(PoolName) ->
+    squery(PoolName, Sql, ?TIMEOUT);
+squery(Sql, Timeout) ->
     case get(?STATE_VAR) of
         undefined ->
-            squery(epgsql_pool, Sql);
+            squery(epgsql_pool, Sql, Timeout);
         Conn ->
             epgsql:squery(Conn, Sql)
     end.
-
-squery(PoolName, Sql) ->
-    squery(PoolName, Sql, ?TIMEOUT).
 
 squery(PoolName, Sql, Timeout) ->
     poolboy:transaction(PoolName,
@@ -45,17 +48,18 @@ squery(PoolName, Sql, Timeout) ->
                                 gen_server:call(Worker, {squery, Sql}, Timeout)
                         end, Timeout).
 
-
 equery(Sql, Params) ->
+    equery(Sql, Params, ?TIMEOUT).
+
+equery(PoolName, Sql, Params) when is_atom(PoolName) ->
+    equery(PoolName, Sql, Params, ?TIMEOUT);
+equery(Sql, Params, Timeout) ->
     case get(?STATE_VAR) of
         undefined ->
-            equery(epgsql_pool, Sql, Params);
+            equery(epgsql_pool, Sql, Params, Timeout);
         Conn ->
             epgsql:equery(Conn, Sql, Params)
     end.
-
-equery(PoolName, Sql, Params) ->
-    equery(PoolName, Sql, Params, ?TIMEOUT).
 
 equery(PoolName, Sql, Params, Timeout) ->
     poolboy:transaction(PoolName,
@@ -74,6 +78,9 @@ with_transaction(PoolName, Fun, Timeout) ->
                                                 {transaction, Fun}, Timeout)
                         end, Timeout).
 
+is_connected(WorkerPid) ->
+    gen_server:call(WorkerPid, {is_connected}, ?TIMEOUT).
+
 start_link(Args) ->
     gen_server:start_link(?MODULE, Args, []).
 
@@ -81,6 +88,12 @@ init(Args) ->
     process_flag(trap_exit, true),
     {ok, connect(#state{start_args = Args, delay = ?INITIAL_DELAY})}.
 
+handle_call({is_connected}, _From, #state{conn = undefined} = State) ->
+    {reply, false, State};
+handle_call({is_connected}, _From, #state{conn = _Conn} = State) ->
+    {reply, true, State};
+handle_call(_Query, _From, #state{conn = undefined} = State) ->
+    {reply, {error, disconnected}, State};
 handle_call({squery, Sql}, _From,
             #state{conn=Conn} = State) when Conn /= undefined ->
     {reply, epgsql:squery(Conn, Sql), State};
