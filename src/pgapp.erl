@@ -38,12 +38,16 @@ equery(Sql, Params) ->
 -spec equery(Sql     :: epgsql:sql_query(),
              Params  :: list(epgsql:bind_param()),
              Timeout :: atom() | integer())
+            -> epgsql:reply(epgsql:equery_row());
+            (PoolName :: atom(),
+             Sql::epgsql:sql_query(),
+             Params   :: list(epgsql:bind_param()))
             -> epgsql:reply(epgsql:equery_row()).
-equery(Sql, Params, Timeout) ->
-    pgapp_worker:equery(Sql, Params, Timeout).
+equery(P1, P2, P3) ->
+    pgapp_worker:equery(P1, P2, P3).
 
-
--spec equery(PoolName :: atom(), Sql::epgsql:sql_query(),
+-spec equery(PoolName :: atom(),
+             Sql::epgsql:sql_query(),
              Params   :: list(epgsql:bind_param()),
              Timeout  :: atom() | integer())
             -> epgsql:reply(epgsql:equery_row()).
