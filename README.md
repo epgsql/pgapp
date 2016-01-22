@@ -43,3 +43,5 @@ The equery and squery API's are the same as those of epgsql: https://github.com/
 
 **Note**: It is still experimental, and is likely to break.  The API
 is not stable!
+
+See [Changelog].
