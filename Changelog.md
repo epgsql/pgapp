@@ -2,7 +2,8 @@
 
 # Next release
 
-- Fixing some dialyzer discrepancies found oin one of my projects.
+- Fixing some dialyzer discrepancies.
+- Changelog and version bumping conventions created.
 
 # v0.0.1
 
