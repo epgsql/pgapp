@@ -2,6 +2,8 @@
 
 # Next release
 
+# v0.0.2
+
 - Fixing some dialyzer discrepancies.
 - Changelog and version bumping conventions created.
 
