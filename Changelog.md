@@ -2,6 +2,11 @@
 
 # Next release
 
+# v0.0.2
+
+- Fixing some dialyzer discrepancies.
+- Changelog and version bumping conventions created.
+
 # v0.0.1
 
 - Support both timeout API and poolname API
