@@ -9,9 +9,11 @@
 -module(pgapp).
 
 %% API
+
 -export([connect/1, connect/2,
          equery/2, equery/3, equery/4,
          squery/1, squery/2, squery/3,
+         prepared_query/2, prepared_query/3, prepared_query/4,
          with_transaction/1, with_transaction/2, with_transaction/3]).
 
 %%%===================================================================
@@ -54,9 +56,42 @@ equery(P1, P2, P3) ->
 equery(PoolName, Sql, Params, Timeout) ->
     pgapp_worker:equery(PoolName, Sql, Params, Timeout).
 
+
+
+
+
+-spec prepared_query(Name    :: string(),
+    Params :: list(epgsql:bind_param()))
+      -> epgsql:reply(epgsql:equery_row()).
+prepared_query(Name, Params) ->
+  pgapp_worker:prepared_query(Name, Params).
+
+-spec prepared_query(Name    :: string(),
+    Params  :: list(epgsql:bind_param()),
+    Timeout :: atom() | integer())
+      -> epgsql:reply(epgsql:equery_row());
+    (PoolName :: atom(),
+        Name    :: string(),
+        Params   :: list(epgsql:bind_param()))
+      -> epgsql:reply(epgsql:equery_row()).
+prepared_query(P1, P2, P3) ->
+  pgapp_worker:prepared_query(P1, P2, P3).
+
+-spec prepared_query(PoolName :: atom(),
+    Name    :: string(),
+    Params   :: list(epgsql:bind_param()),
+    Timeout  :: atom() | integer())
+      -> epgsql:reply(epgsql:equery_row()).
+prepared_query(PoolName, Sql, Params, Timeout) ->
+  pgapp_worker:prepared_query(PoolName, Sql, Params, Timeout).
+
+
+
+
 -spec squery(Sql :: epgsql:sql_query())
-            -> epgsql:reply(epgsql:squery_row()) |
-               [epgsql:reply(epgsql:squery_row())].
+      -> epgsql:reply(epgsql:squery_row()) |
+    [epgsql:reply(epgsql:squery_row())].
+
 squery(Sql) ->
     pgapp_worker:squery(Sql).
 

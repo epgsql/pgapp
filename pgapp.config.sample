@@ -19,7 +19,19 @@
                 {database, "db2"},
                 {username, "user"},
                 {password, "pass"}
-            ]}
+            ]},
+        {pool3, [
+                {size, 10},
+                {max_overflow, 20}
+            ],
+            [
+                {host, "localhost"},
+                {database, "db3"},
+                {username, "user"},
+                {password, "pass"}
+            ],
+            "priv/prepared.sql"},
+
         ]}
     ]
 }].
