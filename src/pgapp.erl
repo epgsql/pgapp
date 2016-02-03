@@ -9,8 +9,12 @@
 -module(pgapp).
 
 %% API
--export([connect/1, connect/2, equery/2, equery/3, squery/1, squery/2,
-         prepared_query/3, prepared_query/2]).
+
+-export([connect/1, connect/2,
+         equery/2, equery/3, equery/4,
+         squery/1, squery/2, squery/3,
+         prepared_query/2, prepared_query/3, prepared_query/4,
+         with_transaction/1, with_transaction/2, with_transaction/3]).
 
 %%%===================================================================
 %%% API
@@ -20,54 +24,123 @@ connect(Settings) ->
     connect(epgsql_pool, Settings).
 
 connect(PoolName, Settings) ->
-    PoolSize = proplists:get_value(size, Settings, 5),
+    PoolSize    = proplists:get_value(size, Settings, 5),
     MaxOverflow = proplists:get_value(max_overflow, Settings, 5),
-    pgapp_sup:add_pool(PoolName,
-                       [{name, {local, PoolName}},
-                        {worker_module, pgapp_worker},
-                        {size, PoolSize},
-                        {max_overflow, MaxOverflow}],
-                       Settings).
+    pgapp_sup:add_pool(PoolName, [{name, {local, PoolName}},
+                                  {worker_module, pgapp_worker},
+                                  {size, PoolSize},
+                                  {max_overflow, MaxOverflow}], Settings).
 
--spec equery(Sql::epgsql:sql_query(),
-             Params :: list(epgsql:bind_param())) -> epgsql:reply(epgsql:equery_row()).
+-spec equery(Sql    :: epgsql:sql_query(),
+             Params :: list(epgsql:bind_param()))
+            -> epgsql:reply(epgsql:equery_row()).
 equery(Sql, Params) ->
-    equery(epgsql_pool, Sql, Params).
+    pgapp_worker:equery(Sql, Params).
 
--spec equery(PoolName::atom(), Sql::epgsql:sql_query(),
-             Params :: list(epgsql:bind_param())) -> epgsql:reply(epgsql:equery_row()).
-equery(PoolName, Sql, Params) ->
-    poolboy:transaction(PoolName,
-                        fun(Worker) ->
-                                gen_server:call(Worker, {equery, Sql, Params})
-                        end).
+-spec equery(Sql     :: epgsql:sql_query(),
+             Params  :: list(epgsql:bind_param()),
+             Timeout :: atom() | integer())
+            -> epgsql:reply(epgsql:equery_row());
+            (PoolName :: atom(),
+             Sql::epgsql:sql_query(),
+             Params   :: list(epgsql:bind_param()))
+            -> epgsql:reply(epgsql:equery_row()).
+equery(P1, P2, P3) ->
+    pgapp_worker:equery(P1, P2, P3).
 
--spec prepared_query(Name::string,Params :: list(epgsql:bind_param())) ->
-                                          epgsql:reply(epgsql:equery_row()).
+-spec equery(PoolName :: atom(),
+             Sql::epgsql:sql_query(),
+             Params   :: list(epgsql:bind_param()),
+             Timeout  :: atom() | integer())
+            -> epgsql:reply(epgsql:equery_row()).
+equery(PoolName, Sql, Params, Timeout) ->
+    pgapp_worker:equery(PoolName, Sql, Params, Timeout).
+
+
+
+
+
+-spec prepared_query(Name    :: string(),
+    Params :: list(epgsql:bind_param()))
+      -> epgsql:reply(epgsql:equery_row()).
 prepared_query(Name, Params) ->
-  prepared_query(epgsql_pool, Name, Params).
+  pgapp_worker:prepared_query(Name, Params).
 
--spec prepared_query(PoolName::atom(), Name::string,
-    Params :: list(epgsql:bind_param())) -> epgsql:reply(epgsql:equery_row()).
-prepared_query(PoolName, Name, Params) ->
-  poolboy:transaction(PoolName,
-    fun(Worker) ->
-      gen_server:call(Worker, {prepared_query, Name, Params})
-    end).
+-spec prepared_query(Name    :: string(),
+    Params  :: list(epgsql:bind_param()),
+    Timeout :: atom() | integer())
+      -> epgsql:reply(epgsql:equery_row());
+    (PoolName :: atom(),
+        Name    :: string(),
+        Params   :: list(epgsql:bind_param()))
+      -> epgsql:reply(epgsql:equery_row()).
+prepared_query(P1, P2, P3) ->
+  pgapp_worker:prepared_query(P1, P2, P3).
+
+-spec prepared_query(PoolName :: atom(),
+    Name    :: string(),
+    Params   :: list(epgsql:bind_param()),
+    Timeout  :: atom() | integer())
+      -> epgsql:reply(epgsql:equery_row()).
+prepared_query(PoolName, Sql, Params, Timeout) ->
+  pgapp_worker:prepared_query(PoolName, Sql, Params, Timeout).
 
 
--spec squery(Sql::epgsql:sql_query()) -> epgsql:reply(epgsql:squery_row()) |
-                                         [epgsql:reply(epgsql:squery_row())].
+
+
+-spec squery(Sql :: epgsql:sql_query())
+      -> epgsql:reply(epgsql:squery_row()) |
+    [epgsql:reply(epgsql:squery_row())].
+
 squery(Sql) ->
-    squery(epgsql_pool, Sql).
+    pgapp_worker:squery(Sql).
 
--spec squery(PoolName::atom(), Sql::epgsql:sql_query()) -> epgsql:reply(epgsql:squery_row()) |
-                                                           [epgsql:reply(epgsql:squery_row())].
-squery(PoolName, Sql) ->
-    poolboy:transaction(PoolName,
-                        fun(Worker) ->
-                                gen_server:call(Worker, {squery, Sql})
-                        end).
+-spec squery(Sql::epgsql:sql_query(),
+             Timeout :: atom() | integer())
+            -> epgsql:reply(epgsql:squery_row()) |
+               [epgsql:reply(epgsql:squery_row())];
+            (PoolName :: atom(),
+             Sql::epgsql:sql_query())
+            -> epgsql:reply(epgsql:squery_row()) |
+               [epgsql:reply(epgsql:squery_row())].
+squery(PoolName, Sql) when is_atom(PoolName) ->
+    pgapp_worker:squery(PoolName, Sql);
+squery(Sql, Timeout) ->
+    pgapp_worker:squery(Sql, Timeout).
+
+-spec squery(PoolName :: atom(),
+             Sql      :: epgsql:sql_query(),
+             Timeout  :: atom() | integer())
+            -> epgsql:reply(epgsql:squery_row()) |
+               [epgsql:reply(epgsql:squery_row())].
+squery(PoolName, Sql, Timeout) ->
+    pgapp_worker:squery(PoolName, Sql, Timeout).
+
+-spec with_transaction(Function :: fun(() -> Reply))
+                      -> Reply | {rollback, any()} when Reply :: any().
+with_transaction(Fun) when is_function(Fun, 0) ->
+    with_transaction(epgsql_pool, Fun).
+
+-spec with_transaction(PoolName :: atom(),
+                       Function :: fun(() -> Reply))
+                      -> Reply | {rollback, any()} when Reply :: any();
+                      (Function :: fun(() -> Reply),
+                       Timeout  :: timeout())
+                      -> Reply | {rollback, any()} when Reply :: any().
+with_transaction(PoolName, Fun) when is_function(Fun, 0);
+                                     is_atom(PoolName) ->
+    pgapp_worker:with_transaction(PoolName, Fun);
+with_transaction(Fun, Timeout) when is_function(Fun, 0) ->
+    pgapp_worker:with_transaction(epgsql_pool, Fun, Timeout).
+
+
+
+-spec with_transaction(PoolName :: atom(),
+                       Function :: fun(() -> Reply),
+                       Timeout  :: atom() | non_neg_integer())
+                      -> Reply | {rollback, any()} when Reply :: any().
+with_transaction(PoolName, Fun, Timeout) when is_function(Fun, 0) ->
+    pgapp_worker:with_transaction(PoolName, Fun, Timeout).
 
 %%--------------------------------------------------------------------
 %% @doc
