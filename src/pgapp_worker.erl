@@ -42,10 +42,10 @@ squery(Sql, Timeout) ->
     squery(epgsql_pool, Sql, Timeout).
 
 squery(PoolName, Sql, Timeout) ->
-    poolboy:transaction(PoolName,
-                        fun (Worker) ->
-                                gen_server:call(Worker, {squery, Sql}, Timeout)
-                        end, Timeout).
+    middle_man_transaction(PoolName,
+                           fun (W) ->
+                                   gen_server:call(W, {squery, Sql}, Timeout)
+                           end, Timeout).
 
 equery(Sql, Params) ->
     case get(?STATE_VAR) of
@@ -61,21 +61,39 @@ equery(Sql, Params, Timeout) ->
     equery(epgsql_pool, Sql, Params, Timeout).
 
 equery(PoolName, Sql, Params, Timeout) ->
-    poolboy:transaction(PoolName,
-                        fun (Worker) ->
-                                gen_server:call(Worker,
-                                                {equery, Sql, Params}, Timeout)
-                        end, Timeout).
+    middle_man_transaction(PoolName,
+                           fun (W) ->
+                                   gen_server:call(W, {equery, Sql, Params},
+                                                   Timeout)
+                           end, Timeout).
 
 with_transaction(PoolName, Fun) ->
     with_transaction(PoolName, Fun, ?TIMEOUT).
 
 with_transaction(PoolName, Fun, Timeout) ->
-    poolboy:transaction(PoolName,
-                        fun (Worker) ->
-                                gen_server:call(Worker,
-                                                {transaction, Fun}, Timeout)
-                        end, Timeout).
+    middle_man_transaction(PoolName,
+                           fun (W) ->
+                                   gen_server:call(W, {transaction, Fun},
+                                                   Timeout)
+                           end, Timeout).
+
+middle_man_transaction(Pool, Fun, Timeout) ->
+    Tag = make_ref(),
+    {Receiver, Ref} = erlang:spawn_monitor(
+                        fun() ->
+                                process_flag(trap_exit, true),
+                                Result = poolboy:transaction(Pool, Fun,
+                                                             Timeout),
+                                exit({self(),Tag,Result})
+                        end),
+    receive
+        {'DOWN', Ref, _, _, {Receiver, Tag, Result}} ->
+            Result;
+        {'DOWN', Ref, _, _, {timeout, _}} ->
+            {error, timeout};
+        {'DOWN', Ref, _, _, Reason} ->
+            {error, Reason}
+    end.
 
 start_link(Args) ->
     gen_server:start_link(?MODULE, Args, []).
