@@ -12,5 +12,7 @@
   {mod, { pgapp_app, []}},
   {env, [
     {pools, []}
-  ]}
+  ]},
+  {maintainers, ["epgsql", "David N. Welton"]},
+  {licenses, ["MIT"]}
  ]}.
