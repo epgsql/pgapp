@@ -14,5 +14,6 @@
     {pools, []}
   ]},
   {maintainers, ["epgsql", "David N. Welton"]},
-  {licenses, ["MIT"]}
+  {licenses, ["MIT"]},
+  {links, [{git, "https://github.com/epgsql/pgapp"}, {mailinglist, "https://groups.google.com/forum/#!forum/epgsql"}]}
  ]}.
