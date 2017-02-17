@@ -44,14 +44,7 @@ squery(Sql, Timeout) ->
 squery(PoolName, Sql, Timeout) ->
     middle_man_transaction(PoolName,
                            fun (W) ->
-                                   try
-                                       gen_server:call(W, {squery, Sql},
-                                                       Timeout)
-                                   catch
-                                       exit:E ->
-                                           exit(W, kill),
-                                           exit(E)
-                                   end
+                                   gen_server:call(W, {squery, Sql}, Timeout)
                            end, Timeout).
 
 equery(Sql, Params) ->
@@ -70,14 +63,8 @@ equery(Sql, Params, Timeout) ->
 equery(PoolName, Sql, Params, Timeout) ->
     middle_man_transaction(PoolName,
                            fun (W) ->
-                                   try
-                                       gen_server:call(W, {equery, Sql, Params},
-                                                       Timeout)
-                                   catch
-                                       exit:E ->
-                                           exit(W, kill),
-                                           exit(E)
-                                   end
+                                   gen_server:call(W, {equery, Sql, Params},
+                                                   Timeout)
                            end, Timeout).
 
 with_transaction(PoolName, Fun) ->
@@ -86,15 +73,8 @@ with_transaction(PoolName, Fun) ->
 with_transaction(PoolName, Fun, Timeout) ->
     middle_man_transaction(PoolName,
                            fun (W) ->
-                                   try
-                                       gen_server:call(W, {transaction, Fun},
-                                                       Timeout)
-                                   catch
-                                       exit:E ->
-                                           exit(W, kill),
-                                           exit(E)
-                                   end
-
+                                   gen_server:call(W, {transaction, Fun},
+                                                   Timeout)
                            end, Timeout).
 
 middle_man_transaction(Pool, Fun, Timeout) ->
@@ -102,7 +82,8 @@ middle_man_transaction(Pool, Fun, Timeout) ->
     {Receiver, Ref} = erlang:spawn_monitor(
                         fun() ->
                                 process_flag(trap_exit, true),
-                                Result = poolboy:transaction(Pool, Fun,
+                                Result = poolboy:transaction(Pool,
+                                                             wrap_timeout(Fun),
                                                              Timeout),
                                 exit({self(),Tag,Result})
                         end),
@@ -113,6 +94,17 @@ middle_man_transaction(Pool, Fun, Timeout) ->
             {error, timeout};
         {'DOWN', Ref, _, _, Reason} ->
             {error, Reason}
+    end.
+
+wrap_timeout(Fun) ->
+    fun(Worker) ->
+            try
+                Fun(Worker)
+            catch
+                Type:Error ->
+                    exit(Worker, kill),
+                    erlang:raise(Type, Error, erlang:get_stacktrace())
+            end
     end.
 
 start_link(Args) ->
