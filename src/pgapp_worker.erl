@@ -44,7 +44,14 @@ squery(Sql, Timeout) ->
 squery(PoolName, Sql, Timeout) ->
     middle_man_transaction(PoolName,
                            fun (W) ->
-                                   gen_server:call(W, {squery, Sql}, Timeout)
+                                   try
+                                       gen_server:call(W, {squery, Sql},
+                                                       Timeout)
+                                   catch
+                                       exit:E ->
+                                           exit(W, kill),
+                                           exit(E)
+                                   end
                            end, Timeout).
 
 equery(Sql, Params) ->
@@ -68,7 +75,7 @@ equery(PoolName, Sql, Params, Timeout) ->
                                                        Timeout)
                                    catch
                                        exit:E ->
-                                           exit(W, kill_it_with_fire),
+                                           exit(W, kill),
                                            exit(E)
                                    end
                            end, Timeout).
@@ -79,8 +86,15 @@ with_transaction(PoolName, Fun) ->
 with_transaction(PoolName, Fun, Timeout) ->
     middle_man_transaction(PoolName,
                            fun (W) ->
-                                   gen_server:call(W, {transaction, Fun},
-                                                   Timeout)
+                                   try
+                                       gen_server:call(W, {transaction, Fun},
+                                                       Timeout)
+                                   catch
+                                       exit:E ->
+                                           exit(W, kill),
+                                           exit(E)
+                                   end
+
                            end, Timeout).
 
 middle_man_transaction(Pool, Fun, Timeout) ->
