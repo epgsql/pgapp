@@ -67,9 +67,9 @@ equery(PoolName, Sql, Params, Timeout) ->
                                        gen_server:call(W, {equery, Sql, Params},
                                                        Timeout)
                                    catch
-                                       E ->
+                                       exit:E ->
                                            exit(W, kill_it_with_fire),
-                                           throw(E)
+                                           exit(E)
                                    end
                            end, Timeout).
 
