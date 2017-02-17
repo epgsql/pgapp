@@ -1,19 +1,11 @@
-{application, pgapp,
- [
-  {description, "epgsql application"},
-  {vsn, "0.0.1"},
-  {registered, []},
-  {applications, [
-                  kernel,
-                  stdlib,
-                  epgsql,
-                  poolboy
-                 ]},
-  {mod, { pgapp_app, []}},
-  {env, [
-    {pools, []}
-  ]},
-  {maintainers, ["epgsql", "David N. Welton"]},
-  {licenses, ["MIT"]},
-  {links, [{git, "https://github.com/epgsql/pgapp"}, {mailinglist, "https://groups.google.com/forum/#!forum/epgsql"}]}
- ]}.
+{application,pgapp,
+             [{description,"epgsql application"},
+              {vsn,"0.0.2"},
+              {registered,[]},
+              {applications,[kernel,stdlib,epgsql,poolboy]},
+              {mod,{pgapp_app,[]}},
+              {env,[{pools,[]}]},
+              {maintainers,["epgsql","David N. Welton"]},
+              {licenses,["MIT"]},
+              {links,[{"git","https://github.com/epgsql/pgapp"},
+                      {"mailinglist","https://groups.google.com/forum/#!forum/epgsql"}]}]}.

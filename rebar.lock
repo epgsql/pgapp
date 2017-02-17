@@ -1,2 +1,8 @@
-[{<<"epgsql">>,{pkg,<<"epgsql">>,<<"3.1.1">>},0},
- {<<"poolboy">>,{pkg,<<"poolboy">>,<<"1.5.1">>},0}].
+{"1.1.0",
+[{<<"epgsql">>,{pkg,<<"epgsql">>,<<"3.3.0">>},0},
+ {<<"poolboy">>,{pkg,<<"poolboy">>,<<"1.5.1">>},0}]}.
+[
+{pkg_hash,[
+ {<<"epgsql">>, <<"974A578340E52012CBAB820CE756E7ED1DF1BAF0110C59A6753D8337A2CF9454">>},
+ {<<"poolboy">>, <<"6B46163901CFD0A1B43D692657ED9D7E599853B3B21B95AE5AE0A777CF9B6CA8">>}]}
+].
