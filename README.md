@@ -27,10 +27,10 @@ API use:
         application:ensure_all_started(pgapp).
         pgapp:connect([{size, 10}, {database, "mydb"}, {username, "foo"}, {password, "bar"}]).
         pgapp:equery("select current_date", []),
-        pgapp:with_transaction(fun() ->
-                                     pgapp:squery("update ..."),
-                                     pgapp:squery("delete from ..."),
-                                     pgapp:equery("select ? from ?", ["*", Table])
+        pgapp:with_transaction(fun(Conn) ->
+                                     pgapp:squery(Conn, "update ..."),
+                                     pgapp:squery(Conn, "delete from ..."),
+                                     pgapp:equery(Conn, "select ? from ?", ["*", Table])
                                end).
 
     - Multi pool:
