@@ -26,18 +26,13 @@
 -define(MAXIMUM_DELAY, 5 * 60 * 1000). % Five minutes
 -define(TIMEOUT, 5 * 1000).
 
--define(STATE_VAR, '$pgapp_state').
-
 squery(Sql) ->
-    case get(?STATE_VAR) of
-        undefined ->
-            squery(epgsql_pool, Sql);
-        Conn ->
-            epgsql:squery(Conn, Sql)
-    end.
+    squery(epgsql_pool, Sql).
 
 squery(PoolName, Sql) when is_atom(PoolName) ->
     squery(PoolName, Sql, ?TIMEOUT);
+squery(Conn, Sql) when is_pid(Conn) ->
+    epgsql:squery(Conn, Sql);
 squery(Sql, Timeout) ->
     squery(epgsql_pool, Sql, Timeout).
 
@@ -48,15 +43,12 @@ squery(PoolName, Sql, Timeout) ->
                            end, Timeout).
 
 equery(Sql, Params) ->
-    case get(?STATE_VAR) of
-        undefined ->
-            equery(epgsql_pool, Sql, Params);
-        Conn ->
-            epgsql:equery(Conn, Sql, Params)
-    end.
+    equery(epgsql_pool, Sql, Params).
 
 equery(PoolName, Sql, Params) when is_atom(PoolName) ->
     equery(PoolName, Sql, Params, ?TIMEOUT);
+equery(Conn, Sql, Params) when is_pid(Conn) ->
+    epgsql:equery(Conn, Sql, Params);
 equery(Sql, Params, Timeout) ->
     equery(epgsql_pool, Sql, Params, Timeout).
 
@@ -70,12 +62,14 @@ equery(PoolName, Sql, Params, Timeout) ->
 with_transaction(PoolName, Fun) ->
     with_transaction(PoolName, Fun, ?TIMEOUT).
 
-with_transaction(PoolName, Fun, Timeout) ->
+with_transaction(PoolName, Fun, Timeout) when is_atom(PoolName) ->
     middle_man_transaction(PoolName,
                            fun (W) ->
                                    gen_server:call(W, {transaction, Fun},
                                                    Timeout)
-                           end, Timeout).
+                           end, Timeout);
+with_transaction(Conn, Fun, _Timeout) when is_pid(Conn) ->
+    epgsql:with_transaction(Conn, Fun).
 
 middle_man_transaction(Pool, Fun, Timeout) ->
     Tag = make_ref(),
@@ -112,9 +106,7 @@ handle_call({equery, Sql, Params}, _From,
     {reply, epgsql:equery(Conn, Sql, Params), State};
 handle_call({transaction, Fun}, _From,
             #state{conn = Conn} = State) ->
-    put(?STATE_VAR, Conn),
-    Result = epgsql:with_transaction(Conn, fun(_) -> Fun() end),
-    erase(?STATE_VAR),
+    Result = epgsql:with_transaction(Conn, Fun),
     {reply, Result, State}.
 
 handle_cast(reconnect, State) ->
