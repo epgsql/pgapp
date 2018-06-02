@@ -38,7 +38,7 @@ equery(Sql, Params) ->
 -spec equery(Sql     :: epgsql:sql_query(),
              Params  :: list(epgsql:bind_param()),
              Timeout :: atom() | integer())
-            -> epgsql:reply(epgsql:equery_row());
+            -> epgsql:reply(epgsql:equery_row()) | {error, Reason :: any()};
             (PoolName :: atom(),
              Sql::epgsql:sql_query(),
              Params   :: list(epgsql:bind_param()))
