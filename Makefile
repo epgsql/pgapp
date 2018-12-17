@@ -1,6 +1,10 @@
-REBAR=rebar
+REBAR=./rebar3
 
 all: get-deps compile
+
+$(REBAR):
+	wget https://s3.amazonaws.com/rebar3/rebar3
+	chmod +x rebar3
 
 get-deps:
 	$(REBAR) get-deps
