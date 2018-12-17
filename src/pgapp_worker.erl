@@ -120,7 +120,7 @@ handle_call({transaction, Fun}, _From,
 handle_cast(reconnect, State) ->
     {noreply, connect(State)}.
 
-handle_info({'EXIT', From, Reason}, State) ->
+handle_info({'EXIT', Conn, Reason}, #state{conn=Conn} = State) ->
     {NewDelay, Tref} =
         case State#state.timer of
             undefined ->
@@ -137,9 +137,12 @@ handle_info({'EXIT', From, Reason}, State) ->
         end,
 
     error_logger:warning_msg(
-      "~p EXIT from ~p: ~p - attempting to reconnect in ~p ms~n",
-      [self(), From, Reason, NewDelay]),
-    {noreply, State#state{conn = undefined, delay = NewDelay, timer = Tref}}.
+      "~p EXIT from epgsql_sock ~p: ~p - attempting to reconnect in ~p ms~n",
+      [self(), Conn, Reason, NewDelay]),
+    {noreply, State#state{conn = undefined, delay = NewDelay, timer = Tref}};
+
+handle_info(_Other, State) ->
+    {noreply, State}.
 
 terminate(_Reason, #state{conn = undefined}) ->
     ok;
