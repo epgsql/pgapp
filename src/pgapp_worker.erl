@@ -82,7 +82,8 @@ middle_man_transaction(Pool, Fun, Timeout) ->
     {Receiver, Ref} = erlang:spawn_monitor(
                         fun() ->
                                 process_flag(trap_exit, true),
-                                Result = poolboy:transaction(Pool, Fun,
+                                Result = poolboy:transaction(Pool,
+                                                             wrap_timeout(Fun),
                                                              Timeout),
                                 exit({self(),Tag,Result})
                         end),
@@ -93,6 +94,17 @@ middle_man_transaction(Pool, Fun, Timeout) ->
             {error, timeout};
         {'DOWN', Ref, _, _, Reason} ->
             {error, Reason}
+    end.
+
+wrap_timeout(Fun) ->
+    fun(Worker) ->
+            try
+                Fun(Worker)
+            catch
+                Type:Error ->
+                    exit(Worker, kill),
+                    erlang:raise(Type, Error, erlang:get_stacktrace())
+            end
     end.
 
 start_link(Args) ->
