@@ -32,7 +32,7 @@ squery(Sql) ->
     case get(?STATE_VAR) of
         undefined ->
             squery(epgsql_pool, Sql);
-        Conn ->
+        {_PoolName, Conn} ->
             epgsql:squery(Conn, Sql)
     end.
 
@@ -42,16 +42,21 @@ squery(Sql, Timeout) ->
     squery(epgsql_pool, Sql, Timeout).
 
 squery(PoolName, Sql, Timeout) ->
-    middle_man_transaction(PoolName,
-                           fun (W) ->
-                                   gen_server:call(W, {squery, Sql}, Timeout)
-                           end, Timeout).
+    case get(?STATE_VAR) of
+        {PoolName, Conn} ->
+            epgsql:squery(Conn, Sql);
+        _ ->
+            middle_man_transaction(PoolName,
+                fun (W) ->
+                    gen_server:call(W, {squery, Sql}, Timeout)
+                end, Timeout)
+    end.
 
 equery(Sql, Params) ->
     case get(?STATE_VAR) of
         undefined ->
             equery(epgsql_pool, Sql, Params);
-        Conn ->
+        {_PoolName, Conn} ->
             epgsql:equery(Conn, Sql, Params)
     end.
 
@@ -61,21 +66,30 @@ equery(Sql, Params, Timeout) ->
     equery(epgsql_pool, Sql, Params, Timeout).
 
 equery(PoolName, Sql, Params, Timeout) ->
-    middle_man_transaction(PoolName,
-                           fun (W) ->
-                                   gen_server:call(W, {equery, Sql, Params},
-                                                   Timeout)
-                           end, Timeout).
+    case get(?STATE_VAR) of
+        {PoolName, Conn} ->
+            epgsql:equery(Conn, Sql, Params);
+        _ ->
+            middle_man_transaction(PoolName,
+                fun (W) ->
+                    gen_server:call(W, {equery, Sql, Params}, Timeout)
+                end, Timeout)
+    end.
 
 with_transaction(PoolName, Fun) ->
     with_transaction(PoolName, Fun, ?TIMEOUT).
 
 with_transaction(PoolName, Fun, Timeout) ->
-    middle_man_transaction(PoolName,
-                           fun (W) ->
-                                   gen_server:call(W, {transaction, Fun},
-                                                   Timeout)
-                           end, Timeout).
+    case get(?STATE_VAR) of
+        {PoolName, _Conn} ->
+            Fun();
+        _ ->
+            middle_man_transaction(PoolName,
+                        fun (W) ->
+                                gen_server:call(W, {transaction, PoolName, Fun},
+                                                Timeout)
+                        end, Timeout)
+    end.
 
 middle_man_transaction(Pool, Fun, Timeout) ->
     Tag = make_ref(),
@@ -110,9 +124,9 @@ handle_call({squery, Sql}, _From,
 handle_call({equery, Sql, Params}, _From,
             #state{conn = Conn} = State) ->
     {reply, epgsql:equery(Conn, Sql, Params), State};
-handle_call({transaction, Fun}, _From,
+handle_call({transaction, PoolName, Fun}, _From,
             #state{conn = Conn} = State) ->
-    put(?STATE_VAR, Conn),
+    put(?STATE_VAR, {PoolName, Conn}),
     Result = epgsql:with_transaction(Conn, fun(_) -> Fun() end),
     erase(?STATE_VAR),
     {reply, Result, State}.
