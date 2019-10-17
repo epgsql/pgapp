@@ -21,9 +21,16 @@
 connect(Settings) ->
     connect(epgsql_pool, Settings).
 
+connect(PoolName, Settings) when erlang:is_map(Settings) ->
+    PoolSize    = maps:get(size, Settings, 5),
+    MaxOverflow = maps:get(max_overflow, Settings, 5),
+    add_pool(PoolName, PoolSize, MaxOverflow, Settings);
 connect(PoolName, Settings) ->
     PoolSize    = proplists:get_value(size, Settings, 5),
     MaxOverflow = proplists:get_value(max_overflow, Settings, 5),
+    add_pool(PoolName, PoolSize, MaxOverflow, Settings).
+
+add_pool(PoolName, PoolSize, MaxOverflow, Settings) ->
     pgapp_sup:add_pool(PoolName, [{name, {local, PoolName}},
                                   {worker_module, pgapp_worker},
                                   {size, PoolSize},
