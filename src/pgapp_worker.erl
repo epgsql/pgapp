@@ -20,7 +20,7 @@
 -record(state, {conn::pid(),
                 delay::pos_integer(),
                 timer::timer:tref(),
-                start_args::proplists:proplist()}).
+                start_args::proplists:proplist() | map()}).
 
 -define(INITIAL_DELAY, 500). % Half a second
 -define(MAXIMUM_DELAY, 5 * 60 * 1000). % Five minutes
@@ -152,9 +152,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 connect(State) ->
     Args = State#state.start_args,
-    Hostname = proplists:get_value(host, Args),
-    Database = proplists:get_value(database, Args),
-    Username = proplists:get_value(username, Args),
+    {Hostname, Database, Username} = extract_start_args(Args),
 
     case epgsql:connect(Args) of
         {ok, Conn} ->
@@ -174,6 +172,17 @@ connect(State) ->
                   State#state.delay, gen_server, cast, [self(), reconnect]),
             State#state{conn=undefined, delay = NewDelay, timer = Tref}
     end.
+
+extract_start_args(Args) when erlang:is_map(Args) ->
+    Hostname = maps:get(host, Args),
+    Database = maps:get(database, Args),
+    Username = maps:get(username, Args),
+    {Hostname, Database, Username};
+extract_start_args(Args) ->
+    Hostname = proplists:get_value(host, Args),
+    Database = proplists:get_value(database, Args),
+    Username = proplists:get_value(username, Args),
+    {Hostname, Database, Username}.
 
 calculate_delay(Delay) when (Delay * 2) >= ?MAXIMUM_DELAY ->
     ?MAXIMUM_DELAY;
